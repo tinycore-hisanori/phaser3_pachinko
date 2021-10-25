@@ -10,7 +10,8 @@
     <title></title>
     <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/matter-js@0.17.1/build/matter.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/matter-js@0.17.1/build/matter.min.js"></script>    
+       
+    <script src="https://cdn.jsdelivr.net/npm/howler@2.2.3/dist/howler.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
 </head>
 
@@ -32,7 +33,7 @@
 
 <body>
     <script>
-        /*
+
         var bgm = new Howl({
             src: ['bgm.mp3']
         });
@@ -45,14 +46,6 @@
             src: ['clear.mp3']
         });
 
-        var seBomb = new Howl({
-            src: ['bomb.mp3']
-        });
-
-        var seEat = new Howl({
-            src: ['eat.mp3']
-        });
-        */
 
         var gameWidth = 720;
         var gameHeight = 1280;
@@ -149,14 +142,14 @@
                         this.scene.start("stageSelectScene");
                     },
                     this);
-                //this.tweens.add({
-                //    targets: clickButton,
-                //    alpha: 0.5,
-                //     ease: 'Cubic.easeOut',
-                //     duration: 500,
-                //    repeat: -1,
-                //    yoyo: true
-                //})
+                this.tweens.add({
+                    targets: clickButton,
+                    alpha: 0.5,
+                    ease: 'Cubic.easeOut',
+                    duration: 500,
+                    repeat: -1,
+                    yoyo: true
+                });
             }
         }
 
@@ -325,12 +318,12 @@
             btnReturn.on(
                 "pointerdown",
                 () => {
-                    //if (bgm != null) {
-                    //    bgm.stop();
-                    //}
-                    //if (bgmOver != null) {
-                    //    bgmOver.stop();
-                    //}
+                    if (bgm != null) {
+                        bgm.stop();
+                    }
+                    if (bgmOver != null) {
+                        bgmOver.stop();
+                    }
                     currentScene.scene.start("titleScene");
                 },
                 this);
@@ -341,6 +334,10 @@
             pizzaCnt = 0;
             pizzaRemain = 10;
             bGame = true;
+
+            if (bgm != null) {
+                bgm.play();
+            }
         }
 
         class gameScene1 extends Phaser.Scene {
@@ -532,21 +529,22 @@
 
         function doGameOver() {
             bGame = false;
-            //            if (bgm != null) {
-            //                bgm.stop();
-            //            }
+            if (bgm != null) {
+                bgm.stop();
+            }
             txtEnding.text = "GAME OVER";
             txtEnding.visible = true;
             btnReturn.visible = true;
-            //            bgmOver.play();
+            bgmOver.play();
         }
 
         function doGoal() {
             if (bGame == true) {
                 bGame = false;
-                //                if (bgm != null) {
-                //                    bgm.stop();
-                //                }
+                if (bgm != null) {
+                    bgm.stop();
+                }
+                bgmClear.play();
                 txtEnding.text = "GAME CLEAR";
                 txtEnding.visible = true;
                 btnReturn.visible = true;

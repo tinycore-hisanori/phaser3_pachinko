@@ -12,9 +12,9 @@ Phaser3.jsを使ってHTML5のゲームを作るときに参考にしてもら�
  
 以下のアドレスでプレイすることができます。
 
-[目指せ！ピザシューター](https://tinycore-hisanori.github.io/phaser3_corokong/)
+[目指せ！ピザシューター](https://tinycore-hisanori.github.io/phaser3_pachinko/)
 
- ![QR02](https://user-images.githubusercontent.com/30931098/137210144-68faaf69-261a-4355-be0d-5095155bdddf.png)
+ ![QR02](https://user-images.githubusercontent.com/30931098/138745883-929f37da-bf0a-439e-823b-c4a821118bd5.png)
 
 # Features
  
