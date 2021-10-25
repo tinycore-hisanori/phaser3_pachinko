@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+
+    <meta name="viewport"
+        content="width = device-width, initial-scale = 1.0, minimum-scale = 1, maximum-scale = 1, user-scalable = no, viewport-fit=cover,minimal-ui" />
+    <title></title>
+    <script src="https://cdn.jsdelivr.net/npm/phaser@3.55.2/dist/phaser.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/matter-js@0.17.1/build/matter.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/matter-js@0.17.1/build/matter.min.js"></script>    
+    <script src="https://cdn.jsdelivr.net/npm/localforage@1.10.0/dist/localforage.min.js"></script>
+</head>
+
+<style type="text/css">
+    body {
+        background-color: black;
+        min-height: 100vh;
+        min-width: 100vw;
+        height: 100%;
+        width: 100vw;
+        margin: auto;
+    }
+
+    #container {
+        position: absolute;
+        overflow: hidden;
+    }
+</style>
+
+<body>
+    <script>
+        /*
+        var bgm = new Howl({
+            src: ['bgm.mp3']
+        });
+
+        var bgmOver = new Howl({
+            src: ['gameover.mp3']
+        });
+
+        var bgmClear = new Howl({
+            src: ['clear.mp3']
+        });
+
+        var seBomb = new Howl({
+            src: ['bomb.mp3']
+        });
+
+        var seEat = new Howl({
+            src: ['eat.mp3']
+        });
+        */
+
+        var gameWidth = 720;
+        var gameHeight = 1280;
+        var currentScene = null;
+        var shooter = null;
+        var startX, startY, endX, endY;
+        var pizzaArray = [];
+        var pizzaCnt = 0;
+        var pizzaRemain = 10;
+        var bGame = false;
+        var tekiArray = [];
+        var blockArray = [];
+        var txtTime, txtEnding, btnReturn, clickButton;
+        var goalObj, goalObjBody, cursors, shapes;
+        var stageLocks = [0, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
+        var currentStageNo = 0;
+
+        class pizzaContainer extends Phaser.GameObjects.Container {
+            constructor(scene, x, y, _no, _dir) {
+                super(scene, x, y);
+                this._obj = scene.add.sprite(0, -10, "pizza");
+                this.add(this._obj);
+                this._bodyCircle = scene.matter.add.circle(x, y, 30);//x,y,radius
+                this._bodyObj = scene.matter.add.gameObject(this, this._bodyCircle);
+                this._bodyObj.body.label = "pizza";
+                this._bodyObj.setBounce(0.6);
+                console.log("my object: %o", this._bodyObj);
+                this._bodyObj.body.noCount = _no;
+                this.noCount = _no;
+                this.cntTime = 0;
+                scene.add.existing(this._bodyObj);
+                this._obj.play("wastePizza");
+            }
+            preUpdate() {
+                this.cntTime = (this.cntTime + 1) % (8 * 60);//8sec
+                if (this.cntTime == 0) {
+                    this.pizzaErase();
+                    console.log("pizzaErase");
+                }
+            }
+            pizzaErase() {
+                let index = pizzaArray.findIndex(o => o.noCount === this.noCount);
+                this._bodyObj.destroy();
+                //this.destroy();
+                console.log("index " + index);
+                console.log("my object: %o", pizzaArray);
+                pizzaArray.splice(index, 1);
+            }
+        }
+
+        class blockContainer extends Phaser.GameObjects.Container {
+            constructor(scene, x, y) {
+                super(scene, x, y);
+                this._obj = scene.add.sprite(0, -10, "block");
+                this.add(this._obj);
+                this.setSize(100, 100);
+                this._bodyObj = scene.matter.add.gameObject(this).setFixedRotation();
+                this._bodyObj.body.label = "block";
+                this._bodyObj.body.isStatic = true;
+                console.log("my object: %o", this._bodyObj);
+                scene.add.existing(this._bodyObj);
+            }
+        }
+
+        class titleScene extends Phaser.Scene {
+            constructor() {
+                super({ key: "titleScene", active: true });
+            }
+            preload() {
+                this.load.image("bg000", "./title.png");
+            }
+            create() {
+                currentScene = this;
+                var bg001 = this.add
+                    .tileSprite(0, 0, gameWidth, gameHeight, 'bg000')
+                    .setOrigin(0)
+                    .setScrollFactor(0);
+
+                //                let text = this.add
+                //                    .text(150, 100, "Pizza Delivery")
+                //                    .setFontSize(46)
+                //                    .setColor("#0");
+
+                clickButton = this.add
+                    .text(100, 400, "START TO CLICK")
+                    .setStroke("#0000ff", 4)
+                    .setBackgroundColor("#ddbcff")
+                    .setFontSize("60px")
+                    .setColor("#0f0")
+                    .setInteractive();
+                clickButton.on(
+                    "pointerdown",
+                    () => {
+                        this.scene.start("stageSelectScene");
+                    },
+                    this);
+                //this.tweens.add({
+                //    targets: clickButton,
+                //    alpha: 0.5,
+                //     ease: 'Cubic.easeOut',
+                //     duration: 500,
+                //    repeat: -1,
+                //    yoyo: true
+                //})
+            }
+        }
+
+        class stageSelectScene extends Phaser.Scene {
+            constructor() {
+                super({ key: "stageSelectScene", active: false });
+            }
+            preload() {
+                this.load.spritesheet("stageIcon", "./stage_icon.png", {
+                    frameWidth: 150,
+                    frameHeight: 150
+                });
+            }
+            create() {
+                currentScene = this;
+                let text = this.add
+                    .text(150, 50, "Stage Select")
+                    .setFontSize(46)
+                    .setColor("#0");
+
+                localforage.getItem("pizzaShooterStageUnlock", function (err, value) {
+                    if (value != null) {
+                        var maxLen = stageLocks.length;
+                        if (stageLocks.length > value.length) {
+                            maxLen = value.length;
+                        }
+
+                        for (var i = 0; i < maxLen; i++) {
+                            if (stageLocks[i] == 1 && value[i] == 0) {
+                                stageLocks[i] = 0;
+                            }
+                        }
+                    }
+
+                    var stageButtons = [];
+                    for (var nLoop = 0; nLoop < stageLocks.length; nLoop++) {
+                        let posX = (nLoop % 3);
+                        let posY = parseInt(nLoop / 3);
+                        stageButtons.push(currentScene.add.sprite(100 + posX * 250, 200 + posY * 300, "stageIcon"));
+                        stageButtons[stageButtons.length - 1].setInteractive();
+                        stageButtons[stageButtons.length - 1].stageNo = (nLoop + 1);
+                        stageButtons[stageButtons.length - 1].stageName = "gameScene" + (nLoop + 1);
+                        let text = currentScene.add
+                            .text(25 + posX * 250, 280 + posY * 300, "Stage " + (nLoop + 1))
+                            .setFontSize(40)
+                            .setColor("#0");
+
+                        stageButtons[stageButtons.length - 1].setFrame(1);
+                        if (stageLocks[nLoop] == 0) {
+                            stageButtons[stageButtons.length - 1].setFrame(0);
+                            stageButtons[stageButtons.length - 1].on("pointerdown", function (pointer) {
+                                console.log("Stage =" + this.stageName);
+                                currentScene.scene.start(this.stageName);
+                            });
+                        } else if (stageLocks[nLoop] == -1) {
+                            text.text = " 準備中";
+                            stageButtons[stageButtons.length - 1].setFrame(2);
+                        }
+                    }
+
+                });
+            }
+        }
+
+
+        function initGameScene(_shooterX, _shooterY, _goalPosX, _goalPosY) {
+            var bg = currentScene.add
+                .tileSprite(0, 0, gameWidth, gameHeight, 'bg001')
+                .setOrigin(0)
+                .setScrollFactor(0);
+
+            currentScene.matter.world.setBounds(0, 0, gameWidth, gameHeight);
+
+            shooter = currentScene.add.sprite(_shooterX, _shooterY, "shooter");
+            shooter.setInteractive({
+                draggable: true
+            });
+            shooter.label = "shooter";
+            currentScene.input.on("dragstart", function (
+                pointer,
+                gameObject,
+                dragX,
+                dragY
+            ) {
+                startX = gameObject.x;
+                startY = gameObject.y;
+                console.log("START" + gameObject.label);
+            });
+
+            currentScene.input.on("drag", function (pointer, gameObject, dragX, dragY) {
+                let dx = dragX - _shooterX;
+                let dy = dragY - _shooterY;
+                let theta = Math.atan2(dy, dx) * 180 / Math.PI;
+                console.log("RAD=" + theta);
+                shooter.angle = theta;
+            });
+
+
+            currentScene.input.on("dragend", function (pointer, gameObject) {
+                endX = pointer.x;
+                endY = pointer.y;
+                console.log("END" + gameObject.label);
+
+                shooter.angle = 0;
+                shootPizza(startX, startY, endX, endY);
+            });
+
+
+            currentScene.anims.create({
+                key: "wastePizza",
+                frameRate: 1,
+                frames: currentScene.anims.generateFrameNumbers("pizza", { start: 0, end: 8 }),
+                repeat: 0
+            });
+
+
+            let goalImg = currentScene.add.image(0, 0, 'goal');
+            goalObj = currentScene.add.container(_goalPosX, _goalPosY, [goalImg]);
+            goalObj.setSize(100, 75);
+            goalObjBody = currentScene.matter.add.gameObject(goalObj);
+            goalObjBody.setFixedRotation();
+            goalObjBody.body.isStatic = true;
+            goalObjBody.body.label = "goal";
+            goalObjBody.label = "goal";
+            goalObjBody.startX = _goalPosX;
+            goalObjBody.startY = _goalPosY;
+
+            currentScene.matter.world.on("collisionstart", function (e) {
+                e.pairs.forEach(function (p) {
+                    if (p.bodyA.label == "pizza" || p.bodyB.label == "pizza") {
+                        if (p.bodyA.label == "goal" || p.bodyB.label == "goal") {//touch on the goal flag
+                            if (p.bodyA.label == "pizza") {
+                                let obj = pizzaArray.find(o => o.noCount === p.bodyA.noCount);
+                                obj.pizzaErase();
+                            } else {
+                                let obj = pizzaArray.find(o => o.noCount === p.bodyB.noCount);
+                                obj.pizzaErase();
+                            }
+                            console.log("GOAL");
+                            doGoal();
+                        }
+                    }
+                });
+            });
+
+            txtTime = currentScene.add
+                .text(50, 20, "残りピザ：" + pizzaRemain)
+                .setScrollFactor(0)
+                .setFontSize(30)
+                .setStroke("#ffffff", 2)
+                .setColor("#ffffff");
+
+            txtEnding = currentScene.add
+                .text(200, 100, "")
+                .setScrollFactor(0)
+                .setFontSize(46)
+                .setColor("#ff0");
+
+            btnReturn = currentScene.add
+                .text(gameWidth / 2 - 100, 400, " BACK ")
+                .setScrollFactor(0)
+                .setFontSize(46)
+                .setColor("#ff0")
+                .setBackgroundColor("#aa5500")
+                .setInteractive();
+            btnReturn.on(
+                "pointerdown",
+                () => {
+                    //if (bgm != null) {
+                    //    bgm.stop();
+                    //}
+                    //if (bgmOver != null) {
+                    //    bgmOver.stop();
+                    //}
+                    currentScene.scene.start("titleScene");
+                },
+                this);
+            btnReturn.visible = false;
+
+            cursors = currentScene.input.keyboard.createCursorKeys();
+            pizzaArray = [];
+            pizzaCnt = 0;
+            pizzaRemain = 10;
+            bGame = true;
+        }
+
+        class gameScene1 extends Phaser.Scene {
+            constructor() {
+                super({ key: "gameScene1", active: false });
+            }
+            preload() {
+                this.load.image("bg001", "./bg.png");
+
+                this.load.image("shooter", "./shooter.png");
+                this.load.image("goal", "./goal.png");
+                this.load.spritesheet("pizza", "./pizza.png", {
+                    frameWidth: 80,
+                    frameHeight: 80
+                });
+                this.load.image("block", "./block.png");
+            }
+
+
+
+            create() {
+                currentScene = this;
+
+
+                initGameScene(360, 1100, 310, 50);
+
+                this.tweens.addCounter({
+                    targets: goalObjBody,
+                    from: 200,
+                    to: -200,
+                    duration: 1500,
+                    ease: Phaser.Math.Easing.Sine.InOut,
+                    repeat: -1,
+                    yoyo: true,
+                    onUpdate: (tween, target) => {
+                        const x = goalObjBody.startX + target.value
+                        const dx = x - goalObjBody.x;
+                        goalObjBody.x = x;
+                        goalObjBody.setVelocityX(dx);
+                    }
+                });
+
+                blockArray = [];
+                blockArray.push(new blockContainer(this, 50, 200));
+                blockArray.push(new blockContainer(this, 350, 200));
+                blockArray.push(new blockContainer(this, 650, 200));
+
+                currentStageNo = 1;
+            }
+            update() {
+                gameEndCheck();
+            }
+        }
+
+        class gameScene2 extends Phaser.Scene {
+            constructor() {
+                super({ key: "gameScene2", active: false });
+            }
+            preload() {
+                this.load.image("bg001", "./bg.png");
+
+                this.load.image("shooter", "./shooter.png");
+                this.load.image("goal", "./goal.png");
+                this.load.spritesheet("pizza", "./pizza.png", {
+                    frameWidth: 80,
+                    frameHeight: 80
+                });
+                this.load.image("block", "./block.png");
+            }
+
+
+
+            create() {
+                currentScene = this;
+
+
+                initGameScene(360, 1100, 310, 50);
+
+                this.tweens.addCounter({
+                    targets: goalObjBody,
+                    from: 200,
+                    to: -200,
+                    duration: 800,
+                    ease: Phaser.Math.Easing.Sine.InOut,
+                    repeat: -1,
+                    yoyo: true,
+                    onUpdate: (tween, target) => {
+                        const x = goalObjBody.startX + target.value
+                        const dx = x - goalObjBody.x;
+                        goalObjBody.x = x;
+                        goalObjBody.setVelocityX(dx);
+                    }
+                });
+
+                blockArray = [];
+                blockArray.push(new blockContainer(this, 100, 300));
+                blockArray.push(new blockContainer(this, 500, 300));
+                blockArray.push(new blockContainer(this, 350, 500));
+                blockArray.push(new blockContainer(this, 100, 700));
+                blockArray.push(new blockContainer(this, 500, 700));
+
+                currentStageNo = 2;
+            }
+            update() {
+                gameEndCheck();
+            }
+        }
+
+        class gameScene3 extends Phaser.Scene {
+            constructor() {
+                super({ key: "gameScene3", active: false });
+            }
+            preload() {
+                this.load.image("bg001", "./bg.png");
+                this.load.image("shooter", "./shooter.png");
+                this.load.image("goal", "./goal.png");
+                this.load.spritesheet("pizza", "./pizza.png", {
+                    frameWidth: 80,
+                    frameHeight: 80
+                });
+                this.load.image("block", "./block.png");
+            }
+
+
+
+            create() {
+                currentScene = this;
+
+
+                initGameScene(360, 640, 310, 50);
+                var follower = { t: 0, vec: new Phaser.Math.Vector2() };
+                let path = new Phaser.Curves.Path();
+                path.add(new Phaser.Curves.Ellipse(350, 640, 500));
+
+                this.tweens.add({
+                    targets: follower,
+                    t: 1,
+                    ease: 'Sine.easeInOut',
+                    duration: 4000,
+                    yoyo: true,
+                    repeat: -1,
+                    onUpdate: function (tween, target) {
+                        path.getPoint(follower.t, follower.vec);
+                        goalObjBody.x = follower.vec.x;
+                        goalObjBody.y = follower.vec.y;
+                    }
+                });
+
+                blockArray = [];
+                blockArray.push(new blockContainer(this, 150, 200));
+                blockArray.push(new blockContainer(this, 550, 200));
+                blockArray.push(new blockContainer(this, 150, 800));
+                blockArray.push(new blockContainer(this, 550, 800));
+
+                currentStageNo = 3;
+            }
+            update() {
+                gameEndCheck();
+            }
+        }
+
+
+        function gameEndCheck() {
+            if (bGame == true) {
+                txtTime.text = "残りピザ：" + pizzaRemain;
+                console.log("cnt" + pizzaArray.length);
+
+                if (pizzaRemain == 0 && pizzaArray.length == 0) {
+                    doGameOver();
+                }
+            }
+        }
+
+        function shootPizza(_startX, _startY, _endX, _endY) {
+            if (pizzaRemain > 0 && bGame == true) {
+                //calc power vector
+                var vectorX = (_endX - _startX) * -1;
+                var vectorY = (_endY - _startY) * -1;
+                console.log("X=" + vectorX + "Y=" + vectorY);
+                pizzaCnt = pizzaCnt + 1;
+                pizzaArray.push(new pizzaContainer(currentScene, shooter.x, shooter.y, pizzaCnt));
+                pizzaArray[pizzaArray.length - 1].setVelocityX(vectorX / 20);
+                pizzaArray[pizzaArray.length - 1].setVelocityY(vectorY / 20);
+
+                pizzaRemain = pizzaRemain - 1;
+
+            }
+        }
+
+        function doGameOver() {
+            bGame = false;
+            //            if (bgm != null) {
+            //                bgm.stop();
+            //            }
+            txtEnding.text = "GAME OVER";
+            txtEnding.visible = true;
+            btnReturn.visible = true;
+            //            bgmOver.play();
+        }
+
+        function doGoal() {
+            if (bGame == true) {
+                bGame = false;
+                //                if (bgm != null) {
+                //                    bgm.stop();
+                //                }
+                txtEnding.text = "GAME CLEAR";
+                txtEnding.visible = true;
+                btnReturn.visible = true;
+
+                //Next Stage UnLock
+                if (currentStageNo < stageLocks.length) {
+                    if (stageLocks[currentStageNo] == 1) {
+                        stageLocks[currentStageNo] = 0;
+                        localforage.setItem("pizzaShooterStageUnlock", stageLocks);
+                    }
+                }
+            }
+        }
+
+        var config = {
+            type: Phaser.AUTO,
+            width: gameWidth,
+            height: gameHeight,
+            input: {
+                activePointers: 10 //Max enable of multi touch Points(1-10)
+            },
+            backgroundColor: "#eaffff",
+            autoResize: true,
+            physics: {
+                default: "matter",
+                matter: {
+                    gravity: {
+                        x: 0, y: 0
+                    },
+                    debug: true
+                }
+            },
+            scale: {
+                mode: Phaser.Scale.FIT,
+                autoCenter: Phaser.Scale.CENTER_BOTH,
+            },
+            parent: 'game',
+            audio: { disableWebAudio: true },
+            scene: [titleScene, stageSelectScene, gameScene1, gameScene2, gameScene3]
+        }
+        var game = new Phaser.Game(config);
+
+    </script>
+</body>
+
+</html>
