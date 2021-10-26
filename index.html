@@ -67,6 +67,43 @@
         var stageLocks = [0, 1, 1, -1, -1, -1, -1, -1, -1, -1, -1, -1];
         var currentStageNo = 0;
 
+        function doGameOverCheck() {
+            if (bGame == true) {
+                txtTime.text = "残りピザ：" + pizzaRemain;
+                if (pizzaRemain == 0 && pizzaArray.length == 0) {
+                    bGame = false;
+                    if (bgm != null) {
+                        bgm.stop();
+                    }
+                    txtEnding.text = "GAME OVER";
+                    txtEnding.visible = true;
+                    btnReturn.visible = true;
+                    bgmOver.play();
+                }
+            }
+        }
+
+        function doGoal() {
+            if (bGame == true) {
+                bGame = false;
+                if (bgm != null) {
+                    bgm.stop();
+                }
+                bgmClear.play();
+                txtEnding.text = "GAME CLEAR";
+                txtEnding.visible = true;
+                btnReturn.visible = true;
+
+                //Next Stage UnLock
+                if (currentStageNo < stageLocks.length) {
+                    if (stageLocks[currentStageNo] == 1) {
+                        stageLocks[currentStageNo] = 0;
+                        localforage.setItem("pizzaShooterStageUnlock", stageLocks);
+                    }
+                }
+            }
+        }
+        
         function shootPizza(_startX, _startY, _endX, _endY) {
             if (pizzaRemain > 0 && bGame == true) {
                 var vectorX = (_endX - _startX) * -1;
@@ -406,7 +443,7 @@
                 currentStageNo = 1;
             }
             update() {
-                doGmeOverCheck();
+                doGameOverCheck();
             }
         }
 
@@ -444,7 +481,7 @@
                 currentStageNo = 2;
             }
             update() {
-                doGmeOverCheck();
+                doGameOverCheck();
             }
         }
 
@@ -482,64 +519,12 @@
                 currentStageNo = 3;
             }
             update() {
-                doGmeOverCheck();
+                doGameOverCheck();
             }
         }
 
 
-        function doGmeOverCheck() {
-            if (bGame == true) {
-                txtTime.text = "残りピザ：" + pizzaRemain;
-                if (pizzaRemain == 0 && pizzaArray.length == 0) {
-                    bGame = false;
-                    if (bgm != null) {
-                        bgm.stop();
-                    }
-                    txtEnding.text = "GAME OVER";
-                    txtEnding.visible = true;
-                    btnReturn.visible = true;
-                    bgmOver.play();
-                }
-            }
-        }
-
-        function shootPizza(_startX, _startY, _endX, _endY) {
-            if (pizzaRemain > 0 && bGame == true) {
-                //calc power vector
-                var vectorX = (_endX - _startX) * -1;
-                var vectorY = (_endY - _startY) * -1;
-                console.log("X=" + vectorX + "Y=" + vectorY);
-                pizzaCnt = pizzaCnt + 1;
-                pizzaArray.push(new pizzaContainer(currentScene, shooter.x, shooter.y, pizzaCnt));
-                pizzaArray[pizzaArray.length - 1].setVelocityX(vectorX / 20);
-                pizzaArray[pizzaArray.length - 1].setVelocityY(vectorY / 20);
-
-                pizzaRemain = pizzaRemain - 1;
-
-            }
-        }
-
-
-        function doGoal() {
-            if (bGame == true) {
-                bGame = false;
-                if (bgm != null) {
-                    bgm.stop();
-                }
-                bgmClear.play();
-                txtEnding.text = "GAME CLEAR";
-                txtEnding.visible = true;
-                btnReturn.visible = true;
-
-                //Next Stage UnLock
-                if (currentStageNo < stageLocks.length) {
-                    if (stageLocks[currentStageNo] == 1) {
-                        stageLocks[currentStageNo] = 0;
-                        localforage.setItem("pizzaShooterStageUnlock", stageLocks);
-                    }
-                }
-            }
-        }
+        
 
         var config = {
             type: Phaser.AUTO,
